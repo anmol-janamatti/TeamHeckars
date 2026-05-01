@@ -2,16 +2,23 @@ import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { Search, Shield, Phone, Lock, Send, ArrowRight, CheckCircle, FileText, Upload, Brain, Calendar, Building2, Stethoscope, AlertTriangle, Pill, ShieldAlert, Plus, X, Download, Paperclip, QrCode } from 'lucide-react';
+import { useAuth } from '../AuthContext';
+import { Search, Shield, Phone, Lock, Send, ArrowRight, CheckCircle, FileText, Upload, Brain, Calendar, Building2, Stethoscope, AlertTriangle, Pill, ShieldAlert, Plus, X, Download, Paperclip, QrCode, Edit2, Trash2, Save } from 'lucide-react';
 
 export default function PatientWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const phoneParam = searchParams.get('phone') || '';
+  const { user } = useAuth();
 
   const [phone, setPhone] = useState(phoneParam);
   const [patient, setPatient] = useState(null);
   const [recordCount, setRecordCount] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // Edit State
+  const [editingRecordId, setEditingRecordId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+
 
   // Consent
   const [consentStep, setConsentStep] = useState('none'); // none | otp-sent | verified
@@ -40,6 +47,9 @@ export default function PatientWorkspace() {
   const [showScanner, setShowScanner] = useState(false);
   const scannerRef = useRef(null);
 
+  // Critical Bypass State
+  const [criticalBypass, setCriticalBypass] = useState(false);
+
   useEffect(() => {
     if (phoneParam) {
       handleSearch(null, phoneParam);
@@ -53,8 +63,8 @@ export default function PatientWorkspace() {
       
       const res = await api.verifyQr(decodedText);
       const scannedPhone = res.data.phoneNumber;
+      const consentToken = res.data.consentToken;
       setPhone(scannedPhone);
-      toast.success(res.message); // "QR valid. OTP sent."
       
       // Look up patient
       const pRes = await api.searchPatient(scannedPhone);
@@ -62,8 +72,17 @@ export default function PatientWorkspace() {
       setRecordCount(pRes.data.recordCount);
       setSearchParams({ phone: scannedPhone });
       
-      // Auto-move to consent step since OTP is already sent
-      setConsentStep('verify');
+      if (consentToken) {
+        toast.success(res.message); 
+        localStorage.setItem('consentToken', consentToken);
+        setCriticalBypass(true);
+        setConsentStep('verified');
+        fetchRecords();
+      } else {
+        toast.success(res.message); 
+        // Auto-move to consent step since OTP is already sent
+        setConsentStep('verify');
+      }
     } catch (err) {
       toast.error(err.message || 'Invalid QR code');
     }
@@ -92,6 +111,7 @@ export default function PatientWorkspace() {
     setLoading(true);
     setPatient(null);
     setConsentStep('none');
+    setCriticalBypass(false);
     setRecordsData(null);
     setSummaryData(null);
     try {
@@ -229,8 +249,53 @@ export default function PatientWorkspace() {
     }
   };
 
+  const handleEditRecord = (rec) => {
+    setEditingRecordId(rec.id);
+    setEditForm({
+      diagnosis: rec.diagnosis,
+      notes: rec.notes || '',
+      medications: [...(rec.medications || [])],
+      allergies: [...(rec.allergies || [])]
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRecordId(null);
+    setEditForm(null);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await api.updateRecord(editingRecordId, editForm);
+      toast.success('Record updated successfully');
+      setEditingRecordId(null);
+      fetchRecords(); // refresh the list
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteRecord = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this record? This action cannot be undone.')) return;
+    try {
+      await api.deleteRecord(id);
+      toast.success('Record deleted successfully');
+      fetchRecords(); // refresh the list
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', ...(criticalBypass ? { border: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 12, padding: '16px' } : {}) }}>
+      
+      {criticalBypass && (
+        <div style={{ background: '#ef4444', color: 'white', padding: '12px 16px', borderRadius: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, fontWeight: 600, animation: 'pulse 2s infinite' }}>
+          <AlertTriangle size={24} />
+          CRITICAL OVERRIDE ACTIVE: OTP Consent bypassed via QR Scan. This activity has been permanently logged.
+        </div>
+      )}
+
       <div className="page-header" style={{ marginBottom: 16 }}>
         <h1>Patient Workspace</h1>
         <p>Unlock patient data to view records, upload, and generate AI summaries</p>
@@ -337,16 +402,34 @@ export default function PatientWorkspace() {
                 <div className="table-container">
                   <table>
                     <thead>
-                      <tr><th>Date</th><th>Diagnosis</th><th>Doctor</th><th>Medications</th><th>Allergies</th><th>File</th><th>Integrity</th></tr>
+                      <tr><th>Date</th><th>Diagnosis</th><th>Doctor</th><th>Medications</th><th>Allergies</th><th>File</th><th>Integrity</th><th>Actions</th></tr>
                     </thead>
                     <tbody>
                       {recordsData.map(rec => (
                         <tr key={rec.id}>
                           <td style={{ whiteSpace: 'nowrap' }}>{new Date(rec.createdAt).toLocaleDateString()}</td>
-                          <td style={{ fontWeight: 500 }}>{rec.diagnosis}</td>
+                          <td>
+                            {editingRecordId === rec.id ? (
+                              <input className="form-input" value={editForm.diagnosis} onChange={e => setEditForm({...editForm, diagnosis: e.target.value})} style={{ padding: '4px 8px', width: '100%' }} />
+                            ) : (
+                              <span style={{ fontWeight: 500 }}>{rec.diagnosis}</span>
+                            )}
+                          </td>
                           <td>{rec.doctor?.name}<br/><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{rec.doctor?.hospitalName}</span></td>
-                          <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(rec.medications || []).map((m, i) => <span key={i} className="badge badge-blue">{m}</span>)}</div></td>
-                          <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(rec.allergies || []).map((a, i) => <span key={i} className="badge badge-red">{a}</span>)}</div></td>
+                          <td>
+                            {editingRecordId === rec.id ? (
+                              <input className="form-input" placeholder="Comma separated" value={editForm.medications.join(', ')} onChange={e => setEditForm({...editForm, medications: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} style={{ padding: '4px 8px', width: '100%' }} />
+                            ) : (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(rec.medications || []).map((m, i) => <span key={i} className="badge badge-blue">{m}</span>)}</div>
+                            )}
+                          </td>
+                          <td>
+                            {editingRecordId === rec.id ? (
+                              <input className="form-input" placeholder="Comma separated" value={editForm.allergies.join(', ')} onChange={e => setEditForm({...editForm, allergies: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} style={{ padding: '4px 8px', width: '100%' }} />
+                            ) : (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(rec.allergies || []).map((a, i) => <span key={i} className="badge badge-red">{a}</span>)}</div>
+                            )}
+                          </td>
                           <td>
                             {rec.hasFile ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -362,6 +445,21 @@ export default function PatientWorkspace() {
                             )}
                           </td>
                           <td><div className="hash-display" title={rec.hash}><Shield size={10} style={{ display: 'inline', marginRight: 3 }} />{rec.hash?.slice(0, 12)}...</div></td>
+                          <td>
+                            {editingRecordId === rec.id ? (
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                <button className="btn btn-primary btn-sm" onClick={handleSaveEdit} title="Save" style={{ padding: '4px 8px' }}><Save size={12} /></button>
+                                <button className="btn btn-secondary btn-sm" onClick={handleCancelEdit} title="Cancel" style={{ padding: '4px 8px' }}><X size={12} /></button>
+                              </div>
+                            ) : (
+                              rec.doctor?.id === user?.id && (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button className="btn btn-secondary btn-sm" onClick={() => handleEditRecord(rec)} title="Edit" style={{ padding: '4px 8px' }}><Edit2 size={12} /></button>
+                                  <button className="btn btn-secondary btn-sm" onClick={() => handleDeleteRecord(rec.id)} title="Delete" style={{ padding: '4px 8px' }}><Trash2 size={12} color="#ef4444" /></button>
+                                </div>
+                              )
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

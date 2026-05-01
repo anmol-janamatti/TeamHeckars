@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { handleUploadRecord, handleGetRecords, handleGetFile } from '../controllers/recordController.js';
+import { handleUploadRecord, handleGetRecords, handleGetFile, handleUpdateRecord, handleDeleteRecord } from '../controllers/recordController.js';
 import { requireDoctorAuth, requireAuth } from '../middleware/authMiddleware.js';
 import { requireConsent } from '../middleware/consentMiddleware.js';
 
@@ -26,6 +26,12 @@ const router = Router();
 
 // POST /records/upload (doctor auth + optional file upload)
 router.post('/upload', requireDoctorAuth, upload.single('file'), handleUploadRecord);
+
+// PUT /records/:id (doctor auth)
+router.put('/:id', requireDoctorAuth, handleUpdateRecord);
+
+// DELETE /records/:id (doctor auth)
+router.delete('/:id', requireDoctorAuth, handleDeleteRecord);
 
 // GET /records/file/:recordId (auth + consent required — serves decrypted file)
 router.get('/file/:recordId', requireAuth, requireConsent, handleGetFile);

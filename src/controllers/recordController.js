@@ -260,3 +260,87 @@ export const handleGetFile = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * PUT /records/:id
+ * Updates an existing medical record. Only the doctor who created it can update it.
+ */
+export const handleUpdateRecord = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { diagnosis, medications, allergies, notes } = req.body;
+
+    const record = await prisma.medicalRecord.findUnique({
+      where: { id }
+    });
+
+    if (!record) {
+      return error(res, 'Record not found.', 404);
+    }
+
+    if (record.doctorId !== req.doctor.id) {
+      return error(res, 'Access denied. You can only edit records you created.', 403);
+    }
+
+    const parsedMedications = typeof medications === 'string' ? JSON.parse(medications) : medications || [];
+    const parsedAllergies = typeof allergies === 'string' ? JSON.parse(allergies) : allergies || [];
+
+    // Regenerate hash for updated record data
+    const recordData = {
+      patientId: record.patientId,
+      diagnosis,
+      medications: parsedMedications,
+      allergies: parsedAllergies,
+      notes: notes || '',
+      fileName: record.fileName,
+      fileSize: record.fileSize,
+      timestamp: record.createdAt.toISOString(), // use original timestamp
+    };
+    const hash = generateRecordHash(recordData);
+
+    const updatedRecord = await prisma.medicalRecord.update({
+      where: { id },
+      data: {
+        diagnosis,
+        medications: parsedMedications,
+        allergies: parsedAllergies,
+        notes: notes || '',
+        hash
+      }
+    });
+
+    return success(res, 'Record updated successfully.', updatedRecord);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /records/:id
+ * Deletes a medical record. Only the doctor who created it can delete it.
+ */
+export const handleDeleteRecord = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const record = await prisma.medicalRecord.findUnique({
+      where: { id }
+    });
+
+    if (!record) {
+      return error(res, 'Record not found.', 404);
+    }
+
+    if (record.doctorId !== req.doctor.id) {
+      return error(res, 'Access denied. You can only delete records you created.', 403);
+    }
+
+    await prisma.medicalRecord.delete({
+      where: { id }
+    });
+
+    return success(res, 'Record deleted successfully.');
+  } catch (err) {
+    next(err);
+  }
+};

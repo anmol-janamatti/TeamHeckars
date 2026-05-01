@@ -22,11 +22,8 @@ export default function RoleSelection() {
     <div className="role-selection">
       <div className="role-container fade-in">
         <div className="auth-logo">
-          <div className="logo-icon">
-            <Plus size={24} />
-          </div>
         </div>
-        <h1>MedVault</h1>
+        <h1>LifeLink</h1>
         <p>Unified Health Record Access System</p>
 
         <div className="role-cards">

@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const getHeaders = (isFormData = false) => {
   const headers = {};
@@ -69,6 +69,12 @@ const api = {
 
   getRecords: (patientId) =>
     fetch(`${API_BASE}/records/${encodeURIComponent(patientId)}`, { headers: getHeaders() }).then(handleResponse),
+
+  updateRecord: (id, data) =>
+    fetch(`${API_BASE}/records/${encodeURIComponent(id)}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) }).then(handleResponse),
+
+  deleteRecord: (id) =>
+    fetch(`${API_BASE}/records/${encodeURIComponent(id)}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
 
   // Summary
   getSummary: (patientId, type = 'emergency') =>

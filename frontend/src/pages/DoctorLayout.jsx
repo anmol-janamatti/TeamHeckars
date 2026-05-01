@@ -15,7 +15,7 @@ export default function DoctorLayout() {
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <h2><Plus size={16} /> MedVault</h2>
+          <h2>LifeLink</h2>
           <p>Doctor Portal</p>
         </div>
         <nav className="sidebar-nav">

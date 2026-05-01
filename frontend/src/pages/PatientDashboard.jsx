@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import api from '../api';
 import toast from 'react-hot-toast';
-import { LogOut, Calendar, Building2, Stethoscope, Plus, Paperclip, QrCode, Eye, Upload, Download, Shield } from 'lucide-react';
+import { LogOut, Calendar, Building2, Stethoscope, Plus, Paperclip, QrCode, Eye, Upload, Download, Shield, AlertTriangle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function PatientDashboard() {
@@ -80,9 +80,8 @@ export default function PatientDashboard() {
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary)' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 32px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Plus size={16} />
           <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700 }}>MedVault</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700 }}>LifeLink</h2>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Patient Portal</p>
           </div>
         </div>
@@ -236,9 +235,23 @@ export default function PatientDashboard() {
                   const doc = log.doctor;
                   const docPhoto = doc?.photoUrl ? `http://localhost:3000/${doc.photoUrl.replace(/\\/g, '/')}` : null;
                   const docInitials = doc?.name?.replace(/^Dr\.?\s*/i, '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'DR';
-                  const actionIcon = log.action === 'viewed_records' ? <Eye size={14} /> : log.action === 'uploaded_record' ? <Upload size={14} /> : <Download size={14} />;
-                  const actionColor = log.action === 'viewed_records' ? '#3b82f6' : log.action === 'uploaded_record' ? '#16a34a' : '#f59e0b';
-                  const actionLabel = log.action === 'viewed_records' ? 'Viewed Records' : log.action === 'uploaded_record' ? 'Uploaded Record' : 'Downloaded File';
+                  let actionIcon = <Download size={14} />;
+                  let actionColor = '#f59e0b';
+                  let actionLabel = 'Downloaded File';
+
+                  if (log.action === 'viewed_records') {
+                    actionIcon = <Eye size={14} />;
+                    actionColor = '#3b82f6';
+                    actionLabel = 'Viewed Records';
+                  } else if (log.action === 'uploaded_record') {
+                    actionIcon = <Upload size={14} />;
+                    actionColor = '#16a34a';
+                    actionLabel = 'Uploaded Record';
+                  } else if (log.action === 'CONSENT_BYPASS') {
+                    actionIcon = <AlertTriangle size={14} />;
+                    actionColor = '#ef4444';
+                    actionLabel = 'CRITICAL: Consent Bypassed';
+                  }
                   return (
                     <div key={log.id} className="card fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

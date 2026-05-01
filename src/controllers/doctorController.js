@@ -130,7 +130,7 @@ export const handleUploadCsv = async (req, res, next) => {
  */
 export const handleOnboard = async (req, res, next) => {
   try {
-    const { phone, state_council, registration_number, name, email, password } = req.body;
+    const { phone, state_council, registration_number, name, email, password, hospital_name } = req.body;
 
     if (!phone || !state_council || !registration_number || !email || !password) {
       return error(res, 'Phone, state_council, registration_number, email, and password are required.', 400);
@@ -153,6 +153,8 @@ export const handleOnboard = async (req, res, next) => {
       doctorName = verificationResult.doctor.name;
       fatherName = verificationResult.doctor.fatherName;
       isVerified = true;
+    } else {
+      return error(res, 'Verification failed. We could not verify your registration number with the state medical council.', 403);
     }
 
     // Check if email already exists
@@ -183,7 +185,8 @@ export const handleOnboard = async (req, res, next) => {
            email,
            password: hashedPassword,
            verified: isVerified,
-           photoUrl: photoUrl || undefined
+           photoUrl: photoUrl || undefined,
+           hospitalName: hospital_name || undefined
          }
        });
     } else {
@@ -198,7 +201,8 @@ export const handleOnboard = async (req, res, next) => {
            registrationNumber: registration_number,
            stateCouncil: state_council,
            verified: isVerified,
-           photoUrl
+           photoUrl,
+           hospitalName: hospital_name
          }
        });
     }
