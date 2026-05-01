@@ -1,0 +1,40 @@
+{
+  "name": "healthtech-mvp",
+  "version": "1.0.0",
+  "description": "Unified Health Record Access System — HealthTech MVP Backend",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "prisma:generate": "npx prisma generate --schema=src/prisma/schema.prisma",
+    "prisma:migrate": "npx prisma migrate dev --schema=src/prisma/schema.prisma",
+    "prisma:studio": "npx prisma studio --schema=src/prisma/schema.prisma",
+    "prisma:seed": "node src/prisma/seed.js",
+    "prisma:reset": "npx prisma migrate reset --schema=src/prisma/schema.prisma"
+  },
+  "keywords": [
+    "healthtech",
+    "medical-records",
+    "blockchain",
+    "polygon",
+    "express"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.6.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^2.4.5",
+    "twilio": "^6.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.6.0"
+  }
+}

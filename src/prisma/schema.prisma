@@ -1,0 +1,115 @@
+// ─── Prisma Schema ─── HealthTech MVP ───────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Patient ────────────────────────────────────────────────
+model Patient {
+  id          String   @id @default(uuid())
+  name        String
+  phoneNumber String   @unique
+  age         Int?
+  gender      String?
+  createdAt   DateTime @default(now())
+
+  medicalRecords MedicalRecord[]
+  accessLogs     AccessLog[]
+
+  @@map("patients")
+}
+
+// ─── Doctor ─────────────────────────────────────────────────
+model Doctor {
+  id                 String   @id @default(uuid())
+  name               String
+  fatherName         String?
+  photoUrl           String?
+  hospitalName       String?
+  email              String?  @unique
+  password           String?
+  phone              String?  @unique
+  registrationNumber String?
+  stateCouncil       String?
+  verified           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  medicalRecords MedicalRecord[]
+  accessLogs     AccessLog[]
+
+  @@map("doctors")
+}
+
+// ─── Verified Doctor (CSV Dataset) ──────────────────────────
+model VerifiedDoctor {
+  id                 String   @id @default(uuid())
+  name               String
+  registrationNumber String
+  stateCouncil       String
+  fatherName         String?
+  createdAt          DateTime @default(now())
+
+  @@index([registrationNumber, stateCouncil])
+  @@map("verified_doctors")
+}
+
+// ─── Medical Record ─────────────────────────────────────────
+model MedicalRecord {
+  id               String   @id @default(uuid())
+  patientId        String
+  doctorId         String?
+  diagnosis        String
+  medications      Json     @default("[]")
+  allergies        Json     @default("[]")
+  notes            String?
+  fileUrl          String?           // Legacy — kept for backward compatibility
+  encryptedFile    Bytes?            // AES-256-GCM encrypted file binary
+  fileIv           String?           // Initialization vector (hex)
+  fileAuthTag      String?           // GCM authentication tag (hex)
+  fileName         String?           // Original filename
+  fileMimeType     String?           // MIME type (application/pdf, image/png, etc.)
+  fileSize         Int?              // Original file size in bytes
+  hash             String
+  createdAt        DateTime @default(now())
+
+  patient Patient  @relation(fields: [patientId], references: [id])
+  doctor  Doctor?  @relation(fields: [doctorId], references: [id])
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("medical_records")
+}
+
+// ─── Access Log (Audit Trail) ───────────────────────────────
+model AccessLog {
+  id        String   @id @default(uuid())
+  patientId String
+  doctorId  String
+  action    String   // e.g. "viewed_records", "downloaded_file", "uploaded_record"
+  details   String?  // Optional extra context
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("access_logs")
+}
+
+// ─── OTP ────────────────────────────────────────────────────
+model Otp {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String
+  otp         String
+  expiresAt   DateTime
+  verified    Boolean  @default(false)
+
+  @@index([phoneNumber])
+  @@map("otps")
+}
